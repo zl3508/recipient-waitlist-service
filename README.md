@@ -1,4 +1,4 @@
-# Recipient Waitlist Service — Teacher-Style Layout
+# Recipient Waitlist Service 
 
 FastAPI + Pydantic v2. Sprint 1 **stubs** (501), OpenAPI ready, folder layout like the instructor's sample.
 
