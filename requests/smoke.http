@@ -1,0 +1,20 @@
+### Health
+GET http://localhost:8000/health
+
+### Health with path echo
+GET http://localhost:8000/health/hello?echo=world
+
+### List recipients (501 expected)
+GET http://localhost:8000/recipients
+
+### Create hospital (501 expected)
+POST http://localhost:8000/hospitals
+content-type: application/json
+
+{
+  "name": "NY Presbyterian",
+  "city": "New York",
+  "state": "NY",
+  "phone": "+1-212-555-0101",
+  "status": "active"
+}
