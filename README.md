@@ -1,168 +1,204 @@
-# Recipient Waitlist Service 
-
-FastAPI + Pydantic v2. Sprint 1 **stubs** (501), OpenAPI ready, folder layout like the instructor's sample.
-
-## Run
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-# open http://localhost:8000/docs
-```
-## Overview
-
-This repository implements **Microservice 2: Recipient Waitlist**, one of three services in the team project:
-
-- **MS1 – Donor Registry** (Donor/Organ/Consent)
-- **MS2 – Recipient Waitlist** (Recipient/Hospital/Need) ← this repo
-- **MS3 – Matchmaking & Notification** (API‑first with Swagger)
-
-Typical flow:
-1) A **Hospital** is registered.  
-2) A **Recipient** (patient) is onboarded and associated with a primary hospital.  
-3) A **Need** is created for that recipient (organ type, urgency, blood type).  
-4) MS3 later matches Needs with donor/organ data from MS1 and dispatches notifications.
+# 🩸 Recipient Waitlist Service
+FastAPI + Pydantic v2  
+Sprint 1 stubs (HTTP 501), OpenAPI ready.
 
 ---
 
-## Folder Layout (teacher-style)
+## 🚀 Run
 
+**方式 A：直接运行 main.py**
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python main.py
+open http://localhost:8000/docs
+```
+
+**方式 B：用 Uvicorn 启动（开发推荐 --reload）**
+```bash
+uvicorn main:app --reload
+```
+
+> 环境变量：`FASTAPIPORT`（可选）  
+> 通过 `FASTAPIPORT` 自定义端口，例如：
+> ```bash
+> FASTAPIPORT=8080 python main.py
+> ```
+
+---
+
+## 📘 Overview
+This repository implements **Microservice 2: Recipient Waitlist**, one of three services in the team’s cloud computing project:
+
+| Service | Description |
+|--------|-------------|
+| MS1 – Donor Registry | Donor / Organ / Consent |
+| **MS2 – Recipient Waitlist (this repo)** | **Recipient / Hospital / Need** |
+| MS3 – Organ Matching & Notification | API-first with Swagger |
+
+### Typical Flow
+1. Register a **Recipient** with medical/demographic data.  
+2. Record **Organ Needs** (e.g., kidney, liver) with urgency.  
+3. Link the recipient to a **Hospital**.  
+4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
+
+---
+
+## 📂 Folder Layout
 ```
 .
-├─ main.py                     # App entrypoint: create FastAPI, mount all routers
-├─ requirements.txt            # Pinned dependencies (same as the sprint0)
+├─ main.py                     # App entrypoint: create FastAPI (+ uvicorn entry)
+├─ requirements.txt
 ├─ framework/
-│  └─ app_factory.py           # App factory: central place to create the FastAPI app
+│  └─ app_factory.py           # App factory for consistent FastAPI creation
 ├─ middleware/
-│  └─ request_logger.py        # Placeholder for future logging/tracing middleware
 ├─ models/
-│  ├─ __init__.py              # Re-exports for convenient imports
-│  ├─ enums.py                 # Shared enums (blood type, organ type, statuses)
+│  ├─ __init__.py
+│  ├─ enums.py                 # BloodType, OrganType, UrgencyLevel, CommonStatus, NeedStatus
 │  ├─ health.py                # Model for /health responses
-│  ├─ hospital.py              # Hospital* (Base/Create/Read/Update)
 │  ├─ recipient.py             # Recipient* (Base/Create/Read/Update)
+│  ├─ hospital.py              # Hospital* (Base/Create/Read/Update)
 │  └─ need.py                  # Need* (Base/Create/Read/Update)
 ├─ resources/
-│  ├─ __init__.py              # Merges per‑resource APIRouters into a single `api` router
+│  ├─ __init__.py              # Merge per-resource APIRouters into single `api`
 │  ├─ root.py                  # GET /
 │  ├─ health.py                # GET /health, GET /health/{path_echo}
-│  ├─ hospitals.py             # /hospitals… endpoints (Sprint 1: return 501)
-│  ├─ recipients.py            # /recipients… + /recipients/{id}/needs… (501)
-│  └─ needs.py                 # /needs/{id}… (501)
+│  ├─ recipients.py            # /recipients… endpoints (Sprint 1 → 501)
+│  ├─ hospitals.py             # /hospitals… endpoints (Sprint 1 → 501)
+│  └─ needs.py                 # /needs… endpoints (Sprint 1 → 501)
 ├─ services/
-│  ├─ __init__.py
-│  ├─ hospitals_service.py     # Business logic lives here in Sprint 2 (CRUD/DB)
-│  ├─ recipients_service.py
-│  └─ needs_service.py
+│  └─ __init__.py              # Business logic (CRUD/DB) → Sprint 2
 ├─ utils/
-│  ├─ __init__.py
-│  ├─ ip.py                    # Helper to get host IP (used by /health)
-│  ├─ time.py                  # Helper for UTC ISO-8601 timestamps (used by /health)
-│  └─ responses.py             # `not_implemented()` → unified HTTP 501 stub response
+│  ├─ ip.py                    # Get host IP (used by /health)
+│  ├─ time.py                  # UTC ISO-8601 timestamp helper
+│  └─ responses.py             # `not_implemented()` → unified HTTP 501 stub
 └─ requests/
    └─ smoke.http               # VS Code REST Client smoke tests
 ```
 
-**Layering at a glance**
-- **models/** define input/output shapes (validation + documentation).
-- **resources/** expose HTTP endpoints using FastAPI **APIRouter** (thin controllers).
-- **services/** implement business logic and data access (to be filled in Sprint 2).
-- **main.py** creates the app and mounts the merged router from `resources/__init__.py`.
+---
+
+## 🧱 Layering at a glance
+| Layer | Responsibility |
+|---|---|
+| `models/` | Input/output schemas for validation + docs |
+| `resources/` | HTTP endpoints (thin controllers using APIRouter) |
+| `services/` | Business logic and data persistence |
+| `main.py` | App creation (+ server bootstrap with uvicorn) |
 
 ---
 
-## API Surface (Sprint 1 stubs)
-
-> All endpoints are already defined and documented; they currently respond with **HTTP 501** via `utils.responses.not_implemented()`.
+## 🌐 API Surface (Sprint 1 stubs)
+All endpoints are defined and documented; they currently respond with **HTTP 501 Not Implemented** via `utils.responses.not_implemented()`.
 
 ### Root & Health
-- `GET /` — Welcome message, points to `/docs`.
-- `GET /health` — Health check (JSON with status, timestamp, ip, optional echo).
-- `GET /health/{path_echo}` — Health check with path echo (for demo/testing).
-
-### Hospitals
-- `GET /hospitals?city=&state=&status=` — List hospitals (with simple filters).
-- `POST /hospitals` — Create (201).
-- `GET /hospitals/{id}` — Read one.
-- `PUT /hospitals/{id}` — Update.
-- `DELETE /hospitals/{id}` — Delete (204).
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Welcome message, link to `/docs` |
+| GET | `/health` | Health check (status, timestamp, IP, optional echo) |
+| GET | `/health/{path_echo}` | Health check with path echo |
 
 ### Recipients
-- `GET /recipients?blood_type=&status=&hospital_id=` — List.
-- `POST /recipients` — Create (201).
-- `GET /recipients/{id}` — Read one.
-- `PUT /recipients/{id}` — Update.
-- `DELETE /recipients/{id}` — Delete (204).
+| Method | Path | Description |
+|---|---|---|
+| GET | `/recipients` | List recipients (filter by status, blood type, or organ need) |
+| POST | `/recipients` | Create new recipient (201) |
+| GET | `/recipients/{id}` | Retrieve a recipient by ID |
+| PUT | `/recipients/{id}` | Update recipient record |
+| DELETE | `/recipients/{id}` | Delete recipient (204) |
+
+### Hospitals (subresource + standalone)
+| Method | Path | Description |
+|---|---|---|
+| GET | `/hospitals` | List all hospitals (filter by region/capacity) |
+| POST | `/hospitals` | Register a new hospital (201) |
+| GET | `/hospitals/{id}` | Retrieve hospital by ID |
+| PUT | `/hospitals/{id}` | Update hospital info |
+| DELETE | `/hospitals/{id}` | Delete hospital (204) |
+| GET | `/recipients/{recipient_id}/hospital` | Get the hospital associated with a recipient |
 
 ### Needs (subresource + standalone)
-- `GET /recipients/{recipient_id}/needs` — Needs of the recipient.
-- `POST /recipients/{recipient_id}/needs` — Create Need for the recipient (201).
-- `GET /needs/{id}` / `PUT /needs/{id}` / `DELETE /needs/{id}` — Manage a single Need.
+| Method | Path | Description |
+|---|---|---|
+| GET | `/needs` | List all organ needs (filter by organ type/urgency/status) |
+| POST | `/needs` | Create a new need entry (201) |
+| GET | `/needs/{id}` | Retrieve a need by ID |
+| PUT | `/needs/{id}` | Update need details |
+| DELETE | `/needs/{id}` | Delete need (204) |
+| GET | `/recipients/{recipient_id}/needs` | List needs for a recipient |
+| POST | `/recipients/{recipient_id}/needs` | Add organ need for a recipient (201) |
 
 ---
 
-## Data Models (Pydantic v2)
-
-> Convention: **Base** = shared fields. **Create** = request body for creation. **Read** = response shape, includes read‑only fields (`id`, timestamps). **Update** = partial update (all fields optional).
+## 🧩 Data Models (Pydantic v2)
 
 ### Enums (`models/enums.py`)
-- **BloodType**: `A+, A-, B+, B-, AB+, AB-, O+, O-`
-- **OrganType**: `heart, liver, kidney, lung, pancreas, intestine`
-- **CommonStatus**: `active, inactive`
-- **NeedStatus**: `waiting, matched, removed`
-
-### Hospital (`models/hospital.py`)
-- **HospitalBase**
-  - `name: str` (1–200)
-  - `city?: str`, `state?: str`, `phone?: str`
-  - `status: CommonStatus = active`
-- **HospitalCreate** = HospitalBase
-- **HospitalRead** = HospitalBase + `id: UUID`, `created_at: datetime`, `updated_at: datetime`
-- **HospitalUpdate** — same fields as Base, all optional
+- **BloodType**: A+, A-, B+, B-, AB+, AB-, O+, O-  
+- **OrganType**: heart, liver, kidney, lung, pancreas, intestine  
+- **UrgencyLevel**: low, medium, high, critical  
+- **CommonStatus**: active, inactive  
+- **NeedStatus**: waiting, matched, removed
 
 ### Recipient (`models/recipient.py`)
-- **RecipientBase**
-  - `full_name: str` (1–200), `dob: date`, `blood_type: BloodType`
-  - `status: CommonStatus = active`
-  - `primary_hospital_id?: UUID`
-- **RecipientCreate** = RecipientBase
-- **RecipientRead** = RecipientBase + `id`, `created_at`, `updated_at`
-- **RecipientUpdate** — same fields as Base, all optional
+`RecipientBase`
+- full_name: str (1–200)  
+- dob: date  
+- blood_type: BloodType  
+- status: CommonStatus = active  
+- primary_hospital_id?: UUID  
+
+`RecipientCreate` = RecipientBase  
+`RecipientRead` = RecipientBase + `id`, `created_at`, `updated_at`  
+`RecipientUpdate` — all fields optional
+
+### Hospital (`models/hospital.py`)
+`HospitalBase`
+- name: str (1–200)  
+- region: str (1–100)  
+- capacity: int  
+
+`HospitalCreate` = HospitalBase  
+`HospitalRead` = HospitalBase + `id`, `created_at`, `updated_at`  
+`HospitalUpdate` — all fields optional
 
 ### Need (`models/need.py`)
-- **NeedBase**
-  - `organ_type: OrganType`
-  - `urgency: int` (1–5)
-  - `blood_type: BloodType`
-  - `status: NeedStatus = waiting`
-- **NeedCreate** = NeedBase
-- **NeedRead** = NeedBase + `id: UUID`, `recipient_id: UUID`, `listed_at: datetime`, `updated_at: datetime`
-- **NeedUpdate** — same fields as Base, all optional
+`NeedBase`
+- organ_type: OrganType  
+- urgency: UrgencyLevel = medium  
+- status: NeedStatus = waiting  
+- added_at?: datetime  
+
+`NeedCreate` = NeedBase  
+`NeedRead` = NeedBase + `id`, `recipient_id`, `created_at`, `updated_at`  
+`NeedUpdate` — all fields optional
 
 ### Health (`models/health.py`)
-- `status: int`, `status_message: str`, `timestamp: str (UTC ISO-8601)`,  
-  `ip_address: str`, `echo?: str`, `path_echo?: str`
+- status: int  
+- status_message: str  
+- timestamp: str (UTC ISO-8601)  
+- ip_address: str  
+- echo?: str  
+- path_echo?: str  
 
 ---
 
-## Development Tips
+## 🧪 Development Tips
+Run with hot-reload:
+```bash
+uvicorn main:app --reload
+```
 
-- Run with reload:
-  ```bash
-  uvicorn main:app --reload
-  ```
-- Smoke test:
-  ```bash
-  curl -i http://127.0.0.1:8000/health
-  curl -i http://127.0.0.1:8000/hospitals   # 501 (expected in Sprint 1)
-  ```
-- Replace `not_implemented()` with real logic in **services/** for Sprint 2 (start with in‑memory dict, then switch to MySQL).
+Smoke tests:
+```bash
+curl -i http://127.0.0.1:8000/
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1:8000/recipients   # 501 (expected in Sprint 1)
+```
 
 ---
 
-## Roadmap (Sprint 2+)
-
-- Implement in‑memory CRUD in `services/` and wire resource handlers to services.
-- Add `/health/ready` readiness check (lightweight DB ping).
-- Introduce MySQL persistence (schema aligned with enums); read connection from `.env`.
-- Optionally add CORS, request logging middleware, and typed settings.
+## 🗺️ Roadmap (Sprint 2+)
+- Implement in-memory CRUD in `services/` and connect to endpoints.  
+- Add `/health/ready` readiness check (DB ping).  
+- Introduce MySQL persistence (schema aligned with enums) and load settings from `.env`.  
+- Optional: CORS, request logging, typed settings.
