@@ -6,7 +6,7 @@ Sprint 1 stubs (HTTP 501), OpenAPI ready.
 
 ## 🚀 Run
 
-**方式 A：直接运行 main.py**
+**main.py**
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -14,13 +14,12 @@ python main.py
 open http://localhost:8000/docs
 ```
 
-**方式 B：用 Uvicorn 启动（开发推荐 --reload）**
+**Uvicorn begin（--reload）**
 ```bash
 uvicorn main:app --reload
 ```
 
-> 环境变量：`FASTAPIPORT`（可选）  
-> 通过 `FASTAPIPORT` 自定义端口，例如：
+customize the server port by setting `FASTAPIPORT`, for example:
 > ```bash
 > FASTAPIPORT=8080 python main.py
 > ```
