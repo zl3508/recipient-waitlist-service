@@ -164,7 +164,7 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Need (`models/need.py`)
 `NeedBase`
 - organ_type: OrganType  
-- urgency: UrgencyLevel = medium  
+- urgency: int, 1-5
 - status: NeedStatus = waiting  
 - added_at?: datetime  
 
