@@ -134,7 +134,6 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Enums (`models/enums.py`)
 - **BloodType**: A+, A-, B+, B-, AB+, AB-, O+, O-  
 - **OrganType**: heart, liver, kidney, lung, pancreas, intestine  
-- **UrgencyLevel**: low, medium, high, critical  
 - **CommonStatus**: active, inactive  
 - **NeedStatus**: waiting, matched, removed
 
@@ -152,9 +151,11 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 
 ### Hospital (`models/hospital.py`)
 `HospitalBase`
-- name: str (1–200)  
-- region: str (1–100)  
-- capacity: int  
+- `name: str (1–200)`
+- `city: str (1–100)`
+- `state: str (2)`  <!-- e.g., NY, CA -->
+- `phone: str (E.164 recommended)`
+- `status: CommonStatus = active`  <!-- active | inactive -->
 
 `HospitalCreate` = HospitalBase  
 `HospitalRead` = HospitalBase + `id`, `created_at`, `updated_at`  
@@ -167,9 +168,11 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 - status: NeedStatus = waiting  
 - added_at?: datetime  
 
-`NeedCreate` = NeedBase  
-`NeedRead` = NeedBase + `id`, `recipient_id`, `created_at`, `updated_at`  
-`NeedUpdate` — all fields optional
+`HospitalCreate` = HospitalBase  
+`HospitalRead` = HospitalBase + `id: UUID`, `created_at`, `updated_at`  
+`HospitalUpdate` — all fields optional
+
+`List filters`: `city`, `state`, `status`
 
 ### Health (`models/health.py`)
 - status: int  
