@@ -36,9 +36,9 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 | MS3 – Organ Matching & Notification | API-first with Swagger |
 
 ### Typical Flow
-1. Register a **Recipient** with medical/demographic data.  
-2. Record **Organ Needs** (e.g., kidney, liver) with urgency.  
-3. Link the recipient to a **Hospital**.  
+1. Register a recipient with basic data.  
+2. Record organ needs (e.g., heart, liver) with urgency level.  
+3. Link the recipient to the hospital that manages their case.
 4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
 
 ---
