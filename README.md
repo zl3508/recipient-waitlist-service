@@ -53,7 +53,7 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 ├─ middleware/
 ├─ models/
 │  ├─ __init__.py
-│  ├─ enums.py                 # BloodType, OrganType, UrgencyLevel, CommonStatus, NeedStatus
+│  ├─ enums.py                 # BloodType, OrganType, CommonStatus, NeedStatus
 │  ├─ health.py                # Model for /health responses
 │  ├─ recipient.py             # Recipient* (Base/Create/Read/Update)
 │  ├─ hospital.py              # Hospital* (Base/Create/Read/Update)
