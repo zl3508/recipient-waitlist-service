@@ -26,3 +26,9 @@ class NeedStatus(str, Enum):
     WAITING = "waiting"
     MATCHED = "matched"
     REMOVED = "removed"
+
+#class UrgencyLevel(str, Enum):
+  #  LOW = "low"
+   # MEDIUM= "medium"
+   # HIGH = "high"
+   # CRITICAL = "critical"

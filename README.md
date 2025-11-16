@@ -6,7 +6,7 @@ Sprint 1 stubs (HTTP 501), OpenAPI ready.
 
 ## 🚀 Run
 
-**方式 A：直接运行 main.py**
+**main.py**
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -14,13 +14,12 @@ python main.py
 open http://localhost:8000/docs
 ```
 
-**方式 B：用 Uvicorn 启动（开发推荐 --reload）**
+**Uvicorn begin（--reload）**
 ```bash
 uvicorn main:app --reload
 ```
 
-> 环境变量：`FASTAPIPORT`（可选）  
-> 通过 `FASTAPIPORT` 自定义端口，例如：
+customize the server port by setting `FASTAPIPORT`, for example:
 > ```bash
 > FASTAPIPORT=8080 python main.py
 > ```
@@ -37,9 +36,9 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 | MS3 – Organ Matching & Notification | API-first with Swagger |
 
 ### Typical Flow
-1. Register a **Recipient** with medical/demographic data.  
-2. Record **Organ Needs** (e.g., kidney, liver) with urgency.  
-3. Link the recipient to a **Hospital**.  
+1. Register a recipient with basic data.  
+2. Record organ needs (e.g., heart, liver) with urgency level.  
+3. Link the recipient to the hospital that manages their case.
 4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
 
 ---
@@ -54,7 +53,7 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 ├─ middleware/
 ├─ models/
 │  ├─ __init__.py
-│  ├─ enums.py                 # BloodType, OrganType, UrgencyLevel, CommonStatus, NeedStatus
+│  ├─ enums.py                 # BloodType, OrganType, CommonStatus, NeedStatus
 │  ├─ health.py                # Model for /health responses
 │  ├─ recipient.py             # Recipient* (Base/Create/Read/Update)
 │  ├─ hospital.py              # Hospital* (Base/Create/Read/Update)
@@ -135,7 +134,6 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Enums (`models/enums.py`)
 - **BloodType**: A+, A-, B+, B-, AB+, AB-, O+, O-  
 - **OrganType**: heart, liver, kidney, lung, pancreas, intestine  
-- **UrgencyLevel**: low, medium, high, critical  
 - **CommonStatus**: active, inactive  
 - **NeedStatus**: waiting, matched, removed
 
@@ -153,9 +151,11 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 
 ### Hospital (`models/hospital.py`)
 `HospitalBase`
-- name: str (1–200)  
-- region: str (1–100)  
-- capacity: int  
+- `name: str (1–200)`
+- `city: str (1–100)`
+- `state: str (2)`  <!-- e.g., NY, CA -->
+- `phone: str (E.164 recommended)`
+- `status: CommonStatus = active`  <!-- active | inactive -->
 
 `HospitalCreate` = HospitalBase  
 `HospitalRead` = HospitalBase + `id`, `created_at`, `updated_at`  
@@ -164,13 +164,15 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Need (`models/need.py`)
 `NeedBase`
 - organ_type: OrganType  
-- urgency: UrgencyLevel = medium  
+- urgency: int (1-5)
 - status: NeedStatus = waiting  
 - added_at?: datetime  
 
-`NeedCreate` = NeedBase  
-`NeedRead` = NeedBase + `id`, `recipient_id`, `created_at`, `updated_at`  
-`NeedUpdate` — all fields optional
+`HospitalCreate` = HospitalBase  
+`HospitalRead` = HospitalBase + `id: UUID`, `created_at`, `updated_at`  
+`HospitalUpdate` — all fields optional
+
+`List filters`: `city`, `state`, `status`
 
 ### Health (`models/health.py`)
 - status: int  
