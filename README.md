@@ -1,6 +1,6 @@
 # 🩸 Recipient Waitlist Service
 FastAPI + Pydantic v2  
-Sprint 1 stubs (HTTP 501), OpenAPI ready.
+Sprint1 -> Sprint 2 (Cloud Run + Cloud SQL Integration).
 
 ---
 
@@ -41,6 +41,15 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 3. Link the recipient to the hospital that manages their case.
 4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
 
+**Sprint 1** implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
+**Sprint 2** adds:
+1. MySQL persistence (Cloud SQL instance cloudsql1)
+2. Full CRUD for Hospitals / Recipients / Needs
+3. Foreign-key logic (recipient → hospital, need → recipient)
+4. Dockerfile + Cloud Run deployment
+5. /db-test-ms2 DB connectivity endpoint
+
+
 ---
 
 ## 📂 Folder Layout
@@ -48,6 +57,7 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 .
 ├─ main.py                     # App entrypoint: create FastAPI (+ uvicorn entry)
 ├─ requirements.txt
+├── Dockerfile                 # Cloud Run container build
 ├─ framework/
 │  └─ app_factory.py           # App factory for consistent FastAPI creation
 ├─ middleware/
@@ -62,11 +72,15 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 │  ├─ __init__.py              # Merge per-resource APIRouters into single `api`
 │  ├─ root.py                  # GET /
 │  ├─ health.py                # GET /health, GET /health/{path_echo}
-│  ├─ recipients.py            # /recipients… endpoints (Sprint 1 → 501)
-│  ├─ hospitals.py             # /hospitals… endpoints (Sprint 1 → 501)
-│  └─ needs.py                 # /needs… endpoints (Sprint 1 → 501)
+│  ├─ recipients.py            # /recipients… endpoints API routes → services
+│  ├─ hospitals.py             # /hospitals… endpoints API routes → services
+│  └─ needs.py                 # /needs… endpoints API routes → services
 ├─ services/
-│  └─ __init__.py              # Business logic (CRUD/DB) → Sprint 2
+│  └─ __init__.py              # Business logic (CRUD/DB) 
+│  ├─ db.py                    # Sprint 2 – MySQL connection (Cloud SQL)
+│  ├── hospitals_service.py    # NEW – DB CRUD
+│  ├── recipients_service.py   # NEW – DB CRUD
+│  └── needs_service.py        # NEW – DB CRUD
 ├─ utils/
 │  ├─ ip.py                    # Get host IP (used by /health)
 │  ├─ time.py                  # UTC ISO-8601 timestamp helper
@@ -80,15 +94,16 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 ## 🧱 Layering at a glance
 | Layer | Responsibility |
 |---|---|
-| `models/` | Input/output schemas for validation + docs |
-| `resources/` | HTTP endpoints (thin controllers using APIRouter) |
-| `services/` | Business logic and data persistence |
-| `main.py` | App creation (+ server bootstrap with uvicorn) |
+| `models/` | Input/output schemas for validation + OpenAPI documentation (Pydantic v2) |
+| `resources/` | HTTP endpoints (thin routers using APIRouter; call services only) |
+| `services/` | Business logic + MySQL persistence (Sprint 2) |
+| `main.py` | App creation + router mounting + Cloud Run compatibility |
 
 ---
 
 ## 🌐 API Surface (Sprint 1 stubs)
-All endpoints are defined and documented; they currently respond with **HTTP 501 Not Implemented** via `utils.responses.not_implemented()`.
+All Sprint 1 endpoints are now backed by real database logic (Cloud SQL MySQL).
+All 501 stubs have been replaced with full CRUD in services/.
 
 ### Root & Health
 | Method | Path | Description |
@@ -96,20 +111,23 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 | GET | `/` | Welcome message, link to `/docs` |
 | GET | `/health` | Health check (status, timestamp, IP, optional echo) |
 | GET | `/health/{path_echo}` | Health check with path echo |
+| GET | `/db-test-ms2` | NEW (Sprint 2) Verifies Cloud SQL connectivity (SELECT DATABASE() returns service_b_db) |
 
 ### Recipients
 | Method | Path | Description |
 |---|---|---|
 | GET | `/recipients` | List recipients (filter by status, blood type, or organ need) |
-| POST | `/recipients` | Create new recipient (201) |
-| GET | `/recipients/{id}` | Retrieve a recipient by ID |
-| PUT | `/recipients/{id}` | Update recipient record |
-| DELETE | `/recipients/{id}` | Delete recipient (204) |
+| POST | `/recipients` | Create a new recipient (201). primary_hospital_id is stored as soft FK (no strict FK enforcement) |
+| GET | `/recipients/{id}` | Retrieve recipient by UUID |
+| PUT | `/recipients/{id}` | Update any recipient field (partial update allowed; missing fields preserved) |
+| DELETE | `/recipients/{id}` | Delete recipient (204); if the recipient has no needs → ✔️ delete; if needs exist → ❌ FK violation → 500 (recipient not deleted) |
+| GET | `/recipients/{recipient_id}/needs` | List all needs belonging to the recipient |
+| POST | `/recipients/{recipient_id}/needs` | Create an organ need under this recipient (201) |
 
 ### Hospitals (subresource + standalone)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/hospitals` | List all hospitals (filter by region/capacity) |
+| GET | `/hospitals` | List all hospitals (filter by id, name, city, state, phone, status) |
 | POST | `/hospitals` | Register a new hospital (201) |
 | GET | `/hospitals/{id}` | Retrieve hospital by ID |
 | PUT | `/hospitals/{id}` | Update hospital info |
@@ -119,10 +137,10 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Needs (subresource + standalone)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/needs` | List all organ needs (filter by organ type/urgency/status) |
+| GET | `/needs` | List all organ needs (filter by organ_type, urgency, blood_type, status |
 | POST | `/needs` | Create a new need entry (201) |
 | GET | `/needs/{id}` | Retrieve a need by ID |
-| PUT | `/needs/{id}` | Update need details |
+| PUT | `/needs/{id}` | Update organ need (organ, urgency 1–5, blood type, status) |
 | DELETE | `/needs/{id}` | Delete need (204) |
 | GET | `/recipients/{recipient_id}/needs` | List needs for a recipient |
 | POST | `/recipients/{recipient_id}/needs` | Add organ need for a recipient (201) |
@@ -164,15 +182,13 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 ### Need (`models/need.py`)
 `NeedBase`
 - organ_type: OrganType  
-- urgency: int (1-5)
+- urgency: int (1–5)  
+- blood_type: BloodType  
 - status: NeedStatus = waiting  
-- added_at?: datetime  
 
-`HospitalCreate` = HospitalBase  
-`HospitalRead` = HospitalBase + `id: UUID`, `created_at`, `updated_at`  
-`HospitalUpdate` — all fields optional
-
-`List filters`: `city`, `state`, `status`
+`NeedCreate` = NeedBase  
+`NeedRead` = NeedBase + `id: UUID`, `recipient_id`, `listed_at`, `updated_at`  
+`NeedUpdate` — all fields optional
 
 ### Health (`models/health.py`)
 - status: int  
@@ -181,6 +197,50 @@ All endpoints are defined and documented; they currently respond with **HTTP 501
 - ip_address: str  
 - echo?: str  
 - path_echo?: str  
+
+---
+## 🧪 Service Logic (Sprint 2)
+**Hospitals Service**
+- list (with filters)
+- create / update / delete
+- timestamp management
+- status enum mapping
+- delete behavior:
+  - hospital is not referenced by any recipients → ✔️ deleted successfully
+  - some recipients have `primary_hospital_id = {id}` → ❌ MySQL FK violation → 500 error (no rows deleted)
+
+**Recipients Service**
+- list all recipients with filters (`blood_type`, `status`, `hospital_id`, `limit`)
+- create a new recipient with optional primary_hospital_id  
+  - primary_hospital_id empty/null → ✔️ success  
+  - primary_hospital_id does not exist → ❌ MySQL FK violation → 500  
+- get / update / delete a single recipient (`GET/PUT/DELETE /recipients/{id}`)
+- update logic performs partial updates: fields omitted in the request retain their previous values
+- manage `created_at` / `updated_at` timestamps in the service layer
+- delete behavior:
+  - recipient has no needs → ✔️ deleted successfully
+  - recipient has needs → ❌ MySQL FK violation → 500 (recipient not deleted)
+- exposes subresource for needs:
+  - `GET /recipients/{recipient_id}/needs`
+  - `POST /recipients/{recipient_id}/needs`
+  
+**Needs Service**
+- list all needs for a given recipient (`GET /recipients/{recipient_id}/needs`)
+- create a new need under a recipient (`POST /recipients/{recipient_id}/needs`)
+  - recipient exists → ✔️ success  
+  - recipient does NOT exist → ❌ MySQL FK violation → 500 error  
+- get / update / delete a single need (`GET/PUT/DELETE /needs/{id}`)
+- validate `recipient_id` before insert; enforce urgency constraints (1–5) and status enum (`waiting/matched/removed`)
+- manage `listed_at` / `updated_at` timestamps in the service layer
+- deletion behavior:
+  - need with valid id → ✔️ deleted successfully  
+  - no cascade: deleting a recipient with remaining needs → ❌ blocked by FK constraint
+
+**Notes**
+- MySQL FK constraints block deletion of a parent row when it still has children.
+- To safely delete:
+  - delete **needs → then recipient**
+  - update/remove **recipients → then hospital**
 
 ---
 
@@ -199,8 +259,3 @@ curl -i http://127.0.0.1:8000/recipients   # 501 (expected in Sprint 1)
 
 ---
 
-## 🗺️ Roadmap (Sprint 2+)
-- Implement in-memory CRUD in `services/` and connect to endpoints.  
-- Add `/health/ready` readiness check (DB ping).  
-- Introduce MySQL persistence (schema aligned with enums) and load settings from `.env`.  
-- Optional: CORS, request logging, typed settings.
