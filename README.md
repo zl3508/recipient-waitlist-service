@@ -1,28 +1,31 @@
 # 🩸 Recipient Waitlist Service
-FastAPI + Pydantic v2  
-Sprint1 -> Sprint 2 (Cloud Run + Cloud SQL Integration).
+FastAPI + Pydantic v2 + SQL VM
+Sprint 1 delivered full API stubs (HTTP 501, OpenAPI ready).
+Sprint 2 now provides complete database-backed CRUD, filtering, pagination, linked data (HATEOAS).
 
 ---
 
 ## 🚀 Run
-
-**main.py**
-```bash
+```
+# local
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
 python main.py
 open http://localhost:8000/docs
-```
 
-**Uvicorn begin（--reload）**
-```bash
-uvicorn main:app --reload
-```
+# docker related
+docker build --platform linux/amd64 -t zhenqili/recipient-waitlist-service:latest .
+docker push zhenqili/recipient-waitlist-service:latest
 
-customize the server port by setting `FASTAPIPORT`, for example:
-> ```bash
-> FASTAPIPORT=8080 python main.py
-> ```
+# cloud run (MySQL on VM)
+gcloud run deploy recipient-waitlist-service \
+  --image docker.io/zhenqili/recipient-waitlist-service:latest \
+  --platform managed \
+  --region us-east1 \
+  --allow-unauthenticated \
+  --set-env-vars DB_HOST="10.128.0.3",DB_PORT="3306",DB_USER="root",DB_PASSWORD="your_vm_password",DB_NAME="service_b_db"
+```
 
 ---
 
