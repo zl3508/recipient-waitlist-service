@@ -45,6 +45,7 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
 
 **Sprint 1** implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
+
 **Sprint 2** adds:
 1. MySQL persistence (Cloud SQL instance cloudsql1)
 2. Full CRUD for Hospitals / Recipients / Needs
