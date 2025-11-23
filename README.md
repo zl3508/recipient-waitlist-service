@@ -24,7 +24,7 @@ gcloud run deploy recipient-waitlist-service \
   --platform managed \
   --region us-east1 \
   --allow-unauthenticated \
-  --set-env-vars DB_HOST="10.128.0.3",DB_PORT="3306",DB_USER="root",DB_PASSWORD="your_vm_password",DB_NAME="service_b_db"
+  --set-env-vars DB_HOST="35.232.73.84",DB_PORT="3306",DB_USER="root",DB_PASSWORD="comsorgandonation",DB_NAME="microservice_db"
 ```
 
 ---
