@@ -12,7 +12,7 @@ from services.recipients_service import (
     update_recipient as svc_update_recipient,
     delete_recipient as svc_delete_recipient,
 )
-from utils.responses import not_implemented  # 下面 needs 那部分暂时还是 501
+from utils.responses import not_implemented  
 
 
 from models.enums import BloodType, CommonStatus, OrganType, NeedStatus
