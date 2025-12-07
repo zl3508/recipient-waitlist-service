@@ -6,15 +6,15 @@ from contextlib import contextmanager
 
 def get_connection():
     """
-    支持两种模式：
+    Supports two connection modes:
 
-    1）Cloud Run + Cloud SQL（通过 unix socket）：
+    1）Cloud Run + Cloud SQL (via Unix socket):：
         DB_HOST = /cloudsql/<INSTANCE_CONNECTION_NAME>
-        DB_USER, DB_PASSWORD, DB_NAME 正常配置即可
-        不需要 host/port
+        Configure DB_USER, DB_PASSWORD, DB_NAME normally
+        No host/port needed
 
-    2）本地开发（连接本地 MySQL 或 Cloud SQL 公网 IP）：
-        DB_HOST = 127.0.0.1（或 Cloud SQL 公网 IP）
+    2）Local development (connecting to local MySQL or Cloud SQL public IP):
+        DB_HOST = 127.0.0.1 (or Cloud SQL public IP)
         DB_PORT = 3306
     """
     db_user = os.getenv("DB_USER")
@@ -23,7 +23,7 @@ def get_connection():
     db_host = os.getenv("DB_HOST", "")
     db_port = int(os.getenv("DB_PORT", "3306"))
 
-    # Cloud Run 场景：DB_HOST 形如 /cloudsql/spry-sensor-474917-n7:us-east1:cloudsql1
+    # Cloud Run scenario: DB_HOST looks like /cloudsql/<INSTANCE_CONNECTION_NAME>
     if db_host.startswith("/cloudsql/"):
         return mysql.connector.connect(
             user=db_user,
@@ -32,7 +32,7 @@ def get_connection():
             unix_socket=db_host,
         )
     else:
-        # 本地开发 / 直接 TCP 方式
+        # Local development / direct TCP connection
         return mysql.connector.connect(
             user=db_user,
             password=db_password,
@@ -45,14 +45,14 @@ def get_connection():
 @contextmanager
 def db_cursor():
     """
-    你所有 services 里用的 db_cursor() 都走这里：
+    Shared context manager used by services via db_cursor():：
     with db_cursor() as cur:
         cur.execute(...)
         rows = cur.fetchall()
     """
     conn = get_connection()
     try:
-        cur = conn.cursor(dictionary=True)  # 返回 dict，方便 **row → Pydantic
+        cur = conn.cursor(dictionary=True)  # Return dict rows for easy 
         yield cur
         conn.commit()
     except Exception:
