@@ -1,14 +1,14 @@
 FROM python:3.11-slim
 
-# 工作目录
+# Set the working directory
 WORKDIR /app
 
-# 先复制依赖文件并安装依赖
+# Copy dependency list first and install requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 再复制全部代码
+# Then copy the rest of the source code
 COPY . .
 
-# 启动 FastAPI（Cloud Run 会注入 PORT 环境变量）
+# Start FastAPI (Cloud Run injects the PORT environment variable)
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
