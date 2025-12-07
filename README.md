@@ -1,7 +1,7 @@
 # 🩸 Recipient Waitlist Service
 FastAPI + Pydantic v2 + SQL VM
 Sprint 1 delivered full API stubs (HTTP 501, OpenAPI ready).
-Sprint 2 now provides complete database-backed CRUD, filtering, pagination, linked data (HATEOAS).
+Sprint 2 now provides database-backed CRUD with query filtering and `LIMIT` controls.
 
 ---
 
@@ -120,10 +120,10 @@ All 501 stubs have been replaced with full CRUD in services/.
 ### Recipients
 | Method | Path | Description |
 |---|---|---|
-| GET | `/recipients` | List recipients (filter by status, blood type, or organ need) |
-| POST | `/recipients` | Create a new recipient (201). primary_hospital_id is stored as soft FK (no strict FK enforcement) |
+| GET | `/recipients` | List recipients (filter by status, blood type, or hospital; `limit` defaults to 50, max 200; no offset/cursor pagination) |
+| POST | `/recipients` | Create a new recipient (201). primary_hospital_id` is stored but not enforced by a DB foreign key in code.  |
 | GET | `/recipients/{id}` | Retrieve recipient by UUID |
-| PUT | `/recipients/{id}` | Update any recipient field (partial update allowed; missing fields preserved) |
+| PUT | `/recipients/{id}` | Update any recipient field (all fields optional) |
 | DELETE | `/recipients/{id}` | Delete recipient (204); if the recipient has no needs → ✔️ delete; if needs exist → ❌ FK violation → 500 (recipient not deleted) |
 | GET | `/recipients/{recipient_id}/needs` | List all needs belonging to the recipient |
 | POST | `/recipients/{recipient_id}/needs` | Create an organ need under this recipient (201) |
@@ -131,7 +131,7 @@ All 501 stubs have been replaced with full CRUD in services/.
 ### Hospitals (subresource + standalone)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/hospitals` | List all hospitals (filter by id, name, city, state, phone, status) |
+| GET | `/hospitals` | List all hospitals (filter by id, name, city, state, phone, status) `limit` defaults to 50, max 200; |
 | POST | `/hospitals` | Register a new hospital (201) |
 | GET | `/hospitals/{id}` | Retrieve hospital by ID |
 | PUT | `/hospitals/{id}` | Update hospital info |
@@ -205,7 +205,7 @@ All 501 stubs have been replaced with full CRUD in services/.
 ---
 ## 🧪 Service Logic (Sprint 2)
 **Hospitals Service**
-- list (with filters)
+- list (with filters and limit)
 - create / update / delete
 - timestamp management
 - status enum mapping
@@ -221,20 +221,16 @@ All 501 stubs have been replaced with full CRUD in services/.
 - get / update / delete a single recipient (`GET/PUT/DELETE /recipients/{id}`)
 - update logic performs partial updates: fields omitted in the request retain their previous values
 - manage `created_at` / `updated_at` timestamps in the service layer
-- delete behavior:
-  - recipient has no needs → ✔️ deleted successfully
-  - recipient has needs → ❌ MySQL FK violation → 500 (recipient not deleted)
+- delete behavior: deletes row when found (204) or returns 404
 - exposes subresource for needs:
   - `GET /recipients/{recipient_id}/needs`
   - `POST /recipients/{recipient_id}/needs`
   
 **Needs Service**
-- list all needs for a given recipient (`GET /recipients/{recipient_id}/needs`)
-- create a new need under a recipient (`POST /recipients/{recipient_id}/needs`)
-  - recipient exists → ✔️ success  
-  - recipient does NOT exist → ❌ MySQL FK violation → 500 error  
+- list all needs with filters (`organ_type`, `status`, `recipient_id`, `limit`)
+- create a new need under a recipient (`POST /recipients/{recipient_id}/needs`); the route validates recipient existence before invoking the service  
 - get / update / delete a single need (`GET/PUT/DELETE /needs/{id}`)
-- validate `recipient_id` before insert; enforce urgency constraints (1–5) and status enum (`waiting/matched/removed`)
+- enforce urgency constraints (1–5) and status enum (`waiting/matched/removed`)
 - manage `listed_at` / `updated_at` timestamps in the service layer
 - deletion behavior:
   - need with valid id → ✔️ deleted successfully  
