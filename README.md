@@ -47,11 +47,10 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 **Sprint 1** implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
 
 **Sprint 2** adds:
-1. MySQL persistence (Cloud SQL instance cloudsql1)
-2. Full CRUD for Hospitals / Recipients / Needs
-3. Foreign-key logic (recipient → hospital, need → recipient)
-4. Dockerfile + Cloud Run deployment
-5. /db-test-ms2 DB connectivity endpoint
+1. Full CRUD for Hospitals / Recipients / Needs
+2. Foreign-key logic (recipient → hospital, need → recipient)
+3. Dockerfile + Cloud Run deployment
+4. /db-test-ms2 DB connectivity endpoint
 
 
 ---
