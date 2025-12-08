@@ -1,6 +1,10 @@
 # 🩸 Recipient Waitlist Service
-- Sprint 1 implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
-- Sprint 2 provided database-backed CRUD for Hospitals / Recipients / Needs, connected with MySQL in VM and deployed on container-as-a-service using Cloud Run.
+- Sprint 1
+  - implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
+- Sprint 2：
+  - provided database-backed CRUD for Hospitals / Recipients / Needs,
+  - connected with MySQL in VM
+  - deployed on container-as-a-service using Cloud Run.
 
 ---
 
@@ -150,49 +154,80 @@ This microservice models a simple hierarchy:
 
 ## 🌐 API Surface
 
-### Root & Health
-| Method | Path | Description |
-|---|---|---|
-| GET | `/` | Welcome message, link to `/docs` |
-| GET | `/health` | Health check (status, timestamp, IP, optional echo) |
-| GET | `/health/{path_echo}` | Health check with path echo |
-| GET | `/db-test-ms2` | NEW (Sprint 2) Verifies Cloud SQL connectivity (SELECT DATABASE() returns service_b_db) |
-
 ### Recipients
 | Method | Path | Description |
 |---|---|---|
-| GET | `/recipients` | List recipients (filter by status, blood type, or hospital; `limit` defaults to 50, max 200; no offset/cursor pagination) |
-| POST | `/recipients` | Create a new recipient (201). primary_hospital_id` is stored but not enforced by a DB foreign key in code.  |
-| GET | `/recipients/{id}` | Retrieve recipient by UUID |
-| PUT | `/recipients/{id}` | Update any recipient field (all fields optional) |
-| DELETE | `/recipients/{id}` | Delete recipient (204); if the recipient has no needs → ✔️ delete; if needs exist → ❌ FK violation → 500 (recipient not deleted) |
-| GET | `/recipients/{recipient_id}/needs` | List all needs belonging to the recipient |
-| POST | `/recipients/{recipient_id}/needs` | Create an organ need under this recipient (201) |
+| GET | `/recipients` | List (filters + `limit`)`limit` defaults to 50, max 200 |
+| POST | `/recipients` | Create recipient |
+| GET | `/recipients/{id}` | Get recipient by ID |
+| PUT | `/recipients/{id}` | Update recipient |
+| DELETE | `/recipients/{id}` | Delete (blocked if needs exist) |
+| GET | `/recipients/{recipient_id}/needs` | Needs for recipient |
+| POST | `/recipients/{recipient_id}/needs` | Add need for recipient |
 
 ### Hospitals (subresource + standalone)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/hospitals` | List all hospitals (filter by id, name, city, state, phone, status) `limit` defaults to 50, max 200; |
-| POST | `/hospitals` | Register a new hospital (201) |
-| GET | `/hospitals/{id}` | Retrieve hospital by ID |
-| PUT | `/hospitals/{id}` | Update hospital info |
-| DELETE | `/hospitals/{id}` | Delete hospital (204) |
-| GET | `/recipients/{recipient_id}/hospital` | Get the hospital associated with a recipient |
+| GET | `/hospitals` | List (filters + `limit`) |
+| POST | `/hospitals` | Create hospital |
+| GET | `/hospitals/{id}` | Get hospital by ID |
+| PUT | `/hospitals/{id}` | Update hospital |
+| DELETE | `/hospitals/{id}` | Delete hospital |
+| GET | `/recipients/{recipient_id}/hospital` | Hospital for recipient |
 
 ### Needs (subresource + standalone)
 | Method | Path | Description |
 |---|---|---|
-| GET | `/needs` | List all organ needs (filter by organ_type, urgency, blood_type, status |
-| POST | `/needs` | Create a new need entry (201) |
-| GET | `/needs/{id}` | Retrieve a need by ID |
-| PUT | `/needs/{id}` | Update organ need (organ, urgency 1–5, blood type, status) |
-| DELETE | `/needs/{id}` | Delete need (204) |
-| GET | `/recipients/{recipient_id}/needs` | List needs for a recipient |
-| POST | `/recipients/{recipient_id}/needs` | Add organ need for a recipient (201) |
+ GET | `/needs` | List needs (filters + `limit`) |
+| POST | `/needs` | Create need |
+| GET | `/needs/{id}` | Get need by ID |
+| PUT | `/needs/{id}` | Update need |
+| DELETE | `/needs/{id}` | Delete need |
+| GET | `/recipients/{recipient_id}/needs` | Needs for recipient |
+| POST | `/recipients/{recipient_id}/needs` | Add need for recipient |
 
 ---
 
 ## 🧩 Data Models (Pydantic v2)
+
+### Hospitals
+| Column | Type |
+|---|---|
+| id | UUID |
+| name | varchar(128) |
+| city | varchar(64) |
+| state | varchar(64) |
+| phone | varchar(32) |
+| status | enum('active','inactive') |
+| created_at | datetime |
+| updated_at | datetime |
+
+### Recipients
+| Column | Type |
+|---|---|
+| id | UUID |
+| full_name | varchar(128) |
+| dob | date |
+| blood_type | enum |
+| status | enum('active','inactive') |
+| primary_hospital_id | FK(hospitals.id) |
+| created_at | datetime |
+| updated_at | datetime |
+
+### Needs
+| Column | Type |
+|---|---|
+| id | UUID |
+| recipient_id | FK(recipients.id) |
+| organ_type | enum('heart','liver','kidney','lung','pancreas','intestine') |
+| urgency | tinyint unsigned CHECK 1–5 |
+| blood_type | enum |
+| status | enum('waiting','matched','removed') |
+| listed_at | datetime |
+| updated_at | datetime |
+
+
+
 
 ### Enums (`models/enums.py`)
 - **BloodType**: A+, A-, B+, B-, AB+, AB-, O+, O-  
@@ -282,43 +317,5 @@ This microservice models a simple hierarchy:
 - To safely delete:
   - delete **needs → then recipient**
   - update/remove **recipients → then hospital**
-
----
-## Database Model
-### Table Cheat Sheet
-| Table | Key Columns | Notes |
-|---|---|---|
-| `hospitals` | `id` (UUID), `name`, `city`, `state`, `phone`, `status`, timestamps | Status controls active/inactive visibility. |
-| `recipients` | `id` (UUID), `full_name`, `dob`, `blood_type`, `status`, `primary_hospital_id`, timestamps | FK to `hospitals.id` but cascades depend on DB config. |
-| `needs` | `id` (UUID), `recipient_id` (FK), `organ_type`, `urgency` (1–5), `blood_type`, `status`, timestamps | Urgency checked 1–5; FK must point to existing recipient. |
-
-### Table Model (MS2)
-| Table | Column | Type |
-|---|---|---|
-| `hospitals` | id | UUID |
-|  | name | varchar(128) |
-|  | city | varchar(64) |
-|  | state | varchar(64) |
-|  | phone | varchar(32) |
-|  | status | enum('active','inactive') |
-|  | created_at | timestamp |
-|  | updated_at | timestamp |
-| `recipients` | id | UUID |
-|  | full_name | varchar(128) |
-|  | dob | date |
-|  | blood_type | enum |
-|  | status | enum('active','inactive') |
-|  | primary_hospital_id | FK(hospitals.id) |
-|  | created_at | timestamp |
-|  | updated_at | timestamp |
-| `needs` | id | UUID |
-|  | recipient_id | FK(recipients.id) |
-|  | organ_type | enum('heart','liver','kidney','lung','pancreas','intestine') |
-|  | urgency | tinyint unsigned CHECK 1–5 |
-|  | blood_type | enum |
-|  | status | enum('waiting','matched','removed') |
-|  | listed_at | timestamp |
-|  | updated_at | timestamp |
-
 ---
 
