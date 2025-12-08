@@ -320,21 +320,5 @@ This microservice models a simple hierarchy:
 |  | listed_at | timestamp |
 |  | updated_at | timestamp |
 
-
-
----
-## 🧪 Development Tips
-Run with hot-reload:
-```bash
-uvicorn main:app --reload
-```
-
-Smoke tests:
-```bash
-curl -i http://127.0.0.1:8000/
-curl -i http://127.0.0.1:8000/health
-curl -i http://127.0.0.1:8000/recipients   # 501 (expected in Sprint 1)
-```
-
 ---
 
