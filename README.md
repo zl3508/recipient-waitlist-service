@@ -1,7 +1,6 @@
 # 🩸 Recipient Waitlist Service
-FastAPI + Pydantic v2 + SQL VM
-Sprint 1 delivered full API stubs (HTTP 501, OpenAPI ready).
-Sprint 2 now provides database-backed CRUD with query filtering and `LIMIT` controls.
+- Sprint 1 implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
+- Sprint 2 provided database-backed CRUD for Hospitals / Recipients / Needs, connected with MySQL in VM and deployed on container-as-a-service using Cloud Run.
 
 ---
 
@@ -18,7 +17,7 @@ open http://localhost:8000/docs
 docker build --platform linux/amd64 -t zhenqili/recipient-waitlist-service:latest .
 docker push zhenqili/recipient-waitlist-service:latest
 
-# cloud run (MySQL on VM)
+# cloud run 
 gcloud run deploy recipient-waitlist-service \
   --image docker.io/zhenqili/recipient-waitlist-service:latest \
   --platform managed \
@@ -38,21 +37,56 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 | **MS2 – Recipient Waitlist (this repo)** | **Recipient / Hospital / Need** |
 | MS3 – Organ Matching & Notification | API-first with Swagger |
 
-### Typical Flow
-1. Register a recipient with basic data.  
-2. Record organ needs (e.g., heart, liver) with urgency level.  
-3. Link the recipient to the hospital that manages their case.
-4. The **Matching Service (MS3)** consumes MS1 + MS2 data to match and notify.
+### Typical Flow (Hospital → Recipient → Needs → Matching)
+This microservice models a simple hierarchy:
 
-**Sprint 1** implemented the full API surface with 501 stubs, schema definitions, OpenAPI documentation, and routing.
+- One **hospital** can have many **recipients**.
+- One **recipient** can have many **needs**.
+- The hierarchy is enforced by foreign keys so that you must always clean up the lower level before deleting the upper level.
 
-**Sprint 2** adds:
-1. Full CRUD for Hospitals / Recipients / Needs
-2. Foreign-key logic (recipient → hospital, need → recipient)
-3. Dockerfile + Cloud Run deployment
-4. /db-test-ms2 DB connectivity endpoint
+### 1) Hospital onboarding and invariants
 
+- Clients create the hospital first (if it does not already exist).
+- Each hospital gets a stable identifier that can be referenced by recipients.
+- A hospital can have zero or more recipients.
+- Deletion rule: a hospital **cannot** be deleted if there are recipients that still reference it.  
+  Callers must first delete or reassign those recipients before deleting the hospital.
 
+### 2) Recipient onboarding and invariants
+
+- The care team creates a recipient; associating a hospital is **optional**:
+  - `primary_hospital_id` may be omitted (recipient has no primary hospital yet), or
+  - it must point to an existing hospital.
+- The service validates that any provided `primary_hospital_id` is valid; an incorrect / non-existent hospital ID is rejected.
+- New recipients are created with `status = active`.
+- A recipient can have zero or more needs.
+- Deletion rule: a recipient **cannot** be deleted if there are needs that still reference it.  
+  Callers must delete the recipient’s needs before deleting the recipient.
+
+### 3) Recording and maintaining organ needs
+
+- A need can only be created for an **existing recipient** (enforced by the `/recipients/{recipient_id}/needs` routes).
+- Each need captures one organ (`organ_type`), an urgency level (1–5), and the recipient’s compatible `blood_type`.
+- Need defaults: `status = waiting`, with `listed_at` auto-set.
+- Multiple needs can be open for the same recipient; urgency and status may change over time.
+- If a need stores a hospital reference (or derives it from the recipient), any provided hospital ID must also refer to a valid hospital; invalid IDs are rejected by the service.
+
+### 4) Data quality and lifecycle rules
+
+- The hierarchy is strictly **top-down for creation** (Hospital → Recipient → Needs), and **bottom-up for deletion** (Needs → Recipient → Hospital).
+- Database foreign keys and API-level validation are used together to prevent orphaned data:
+  - You cannot delete a **recipient** that still has needs.
+  - You cannot delete a **hospital** that still has recipients.
+- Callers are expected to follow the sequence:
+  1. Delete or close needs,
+  2. Delete the recipient,
+  3. Finally, delete the hospital (if desired).
+
+### 5) Matching and consumption (handled in MS3)
+
+- MS3 queries `/needs` or `/recipients/{recipient_id}/needs` to find open requests.
+- When a match is made (using MS1 donors/organs), MS3 updates or deletes the matched need to prevent reuse (implementation happens outside this repo).
+- After consumption, the need should move to `status = matched` or be removed, ensuring that a single organ is not matched twice.
 ---
 
 ## 📂 Folder Layout
@@ -79,11 +113,11 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 │  ├─ hospitals.py             # /hospitals… endpoints API routes → services
 │  └─ needs.py                 # /needs… endpoints API routes → services
 ├─ services/
-│  └─ __init__.py              # Business logic (CRUD/DB) 
-│  ├─ db.py                    # Sprint 2 – MySQL connection (Cloud SQL)
-│  ├── hospitals_service.py    # NEW – DB CRUD
-│  ├── recipients_service.py   # NEW – DB CRUD
-│  └── needs_service.py        # NEW – DB CRUD
+│  ├─ __init__.py              # Package marker; logic lives in the modules below
+│  ├─ db.py                    # lical test + VM with MySQL
+│  ├─ hospitals_service.py     # DB CRUD
+│  ├─ recipients_service.py    # DB CRUD
+│  └─ needs_service.py         # DB CRUD
 ├─ utils/
 │  ├─ ip.py                    # Get host IP (used by /health)
 │  ├─ time.py                  # UTC ISO-8601 timestamp helper
@@ -97,16 +131,24 @@ This repository implements **Microservice 2: Recipient Waitlist**, one of three 
 ## 🧱 Layering at a glance
 | Layer | Responsibility |
 |---|---|
-| `models/` | Input/output schemas for validation + OpenAPI documentation (Pydantic v2) |
-| `resources/` | HTTP endpoints (thin routers using APIRouter; call services only) |
-| `services/` | Business logic + MySQL persistence (Sprint 2) |
-| `main.py` | App creation + router mounting + Cloud Run compatibility |
+| `models/` | Pydantic v2 schemas for request/response validation and OpenAPI docs |
+| `resources/` | FastAPI `APIRouter` modules defining REST endpoints (async) |
+| `services/` | Business logic + MySQL CRUD via `mysql-connector-python`; light domain validation |
+| `services/db.py` | Connection factory + context manager for MySQL (Cloud Run socket or TCP) |
+| `utils/` | IP/time helpers and shared response helpers |
+| `main.py` | Application factory wiring: create app, mount routers, Cloud Run friendly |
+
+### Sprint 2 Enhancements
+- ✅ MySQL-backed persistence through `services/db.py`
+- ✅ Full CRUD for hospitals, recipients, and needs (with nested routes)
+- ✅ Async FastAPI routers delegating to service layer
+- ✅ Basic domain validation (e.g., recipient must exist before adding needs)
+- ✅ `limit` query caps on collection endpoints (no offset/cursor pagination)
+- ⚠️ Not implemented: ETags, HATEOAS links, 201 Location headers, or 202/polling flows
 
 ---
 
-## 🌐 API Surface (Sprint 1 stubs)
-All Sprint 1 endpoints are now backed by real database logic (Cloud SQL MySQL).
-All 501 stubs have been replaced with full CRUD in services/.
+## 🌐 API Surface
 
 ### Root & Health
 | Method | Path | Description |
@@ -242,7 +284,45 @@ All 501 stubs have been replaced with full CRUD in services/.
   - update/remove **recipients → then hospital**
 
 ---
+## Database Model
+### Table Cheat Sheet
+| Table | Key Columns | Notes |
+|---|---|---|
+| `hospitals` | `id` (UUID), `name`, `city`, `state`, `phone`, `status`, timestamps | Status controls active/inactive visibility. |
+| `recipients` | `id` (UUID), `full_name`, `dob`, `blood_type`, `status`, `primary_hospital_id`, timestamps | FK to `hospitals.id` but cascades depend on DB config. |
+| `needs` | `id` (UUID), `recipient_id` (FK), `organ_type`, `urgency` (1–5), `blood_type`, `status`, timestamps | Urgency checked 1–5; FK must point to existing recipient. |
 
+### Table Model (MS2)
+| Table | Column | Type |
+|---|---|---|
+| `hospitals` | id | UUID |
+|  | name | varchar(128) |
+|  | city | varchar(64) |
+|  | state | varchar(64) |
+|  | phone | varchar(32) |
+|  | status | enum('active','inactive') |
+|  | created_at | timestamp |
+|  | updated_at | timestamp |
+| `recipients` | id | UUID |
+|  | full_name | varchar(128) |
+|  | dob | date |
+|  | blood_type | enum |
+|  | status | enum('active','inactive') |
+|  | primary_hospital_id | FK(hospitals.id) |
+|  | created_at | timestamp |
+|  | updated_at | timestamp |
+| `needs` | id | UUID |
+|  | recipient_id | FK(recipients.id) |
+|  | organ_type | enum('heart','liver','kidney','lung','pancreas','intestine') |
+|  | urgency | tinyint unsigned CHECK 1–5 |
+|  | blood_type | enum |
+|  | status | enum('waiting','matched','removed') |
+|  | listed_at | timestamp |
+|  | updated_at | timestamp |
+
+
+
+---
 ## 🧪 Development Tips
 Run with hot-reload:
 ```bash
