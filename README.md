@@ -96,38 +96,38 @@ This microservice models a simple hierarchy:
 ## 📂 Folder Layout
 ```
 .
-├─ main.py                     # App entrypoint: create FastAPI (+ uvicorn entry)
+├─ main.py                     # FastAPI entrypoint
 ├─ requirements.txt
 ├── Dockerfile                 # Cloud Run container build
 ├─ framework/
-│  └─ app_factory.py           # App factory for consistent FastAPI creation
+│  └─ app_factory.py           
 ├─ middleware/
-├─ models/
+├─ models/                     # Pydantic schemas
 │  ├─ __init__.py
-│  ├─ enums.py                 # BloodType, OrganType, CommonStatus, NeedStatus
-│  ├─ health.py                # Model for /health responses
-│  ├─ recipient.py             # Recipient* (Base/Create/Read/Update)
-│  ├─ hospital.py              # Hospital* (Base/Create/Read/Update)
-│  └─ need.py                  # Need* (Base/Create/Read/Update)
-├─ resources/
-│  ├─ __init__.py              # Merge per-resource APIRouters into single `api`
-│  ├─ root.py                  # GET /
-│  ├─ health.py                # GET /health, GET /health/{path_echo}
-│  ├─ recipients.py            # /recipients… endpoints API routes → services
-│  ├─ hospitals.py             # /hospitals… endpoints API routes → services
-│  └─ needs.py                 # /needs… endpoints API routes → services
-├─ services/
-│  ├─ __init__.py              # Package marker; logic lives in the modules below
-│  ├─ db.py                    # lical test + VM with MySQL
-│  ├─ hospitals_service.py     # DB CRUD
-│  ├─ recipients_service.py    # DB CRUD
-│  └─ needs_service.py         # DB CRUD
-├─ utils/
-│  ├─ ip.py                    # Get host IP (used by /health)
-│  ├─ time.py                  # UTC ISO-8601 timestamp helper
-│  └─ responses.py             # `not_implemented()` → unified HTTP 501 stub
-└─ requests/
-   └─ smoke.http               # VS Code REST Client smoke tests
+│  ├─ enums.py                 
+│  ├─ health.py                
+│  ├─ recipient.py             
+│  ├─ hospital.py              
+│  └─ need.py                  
+├─ resources/                   # API routers
+│  ├─ __init__.py              
+│  ├─ root.py                  
+│  ├─ health.py                
+│  ├─ recipients.py            
+│  ├─ hospitals.py             
+│  └─ needs.py                 
+├─ services/                    # Business logic + DB interaction
+│  ├─ __init__.py              
+│  ├─ db.py                    
+│  ├─ hospitals_service.py     
+│  ├─ recipients_service.py    
+│  └─ needs_service.py         
+├─ utils/                        # Helper functions
+│  ├─ ip.py                    
+│  ├─ time.py                  
+│  └─ responses.py             
+└─ requests/                     # REST Client smoke tests
+   └─ smoke.http               
 ```
 
 ---
@@ -226,96 +226,11 @@ This microservice models a simple hierarchy:
 | listed_at | datetime |
 | updated_at | datetime |
 
-
-
-
 ### Enums (`models/enums.py`)
 - **BloodType**: A+, A-, B+, B-, AB+, AB-, O+, O-  
 - **OrganType**: heart, liver, kidney, lung, pancreas, intestine  
 - **CommonStatus**: active, inactive  
 - **NeedStatus**: waiting, matched, removed
 
-### Recipient (`models/recipient.py`)
-`RecipientBase`
-- full_name: str (1–200)  
-- dob: date  
-- blood_type: BloodType  
-- status: CommonStatus = active  
-- primary_hospital_id?: UUID  
-
-`RecipientCreate` = RecipientBase  
-`RecipientRead` = RecipientBase + `id`, `created_at`, `updated_at`  
-`RecipientUpdate` — all fields optional
-
-### Hospital (`models/hospital.py`)
-`HospitalBase`
-- `name: str (1–200)`
-- `city: str (1–100)`
-- `state: str (2)`  <!-- e.g., NY, CA -->
-- `phone: str (E.164 recommended)`
-- `status: CommonStatus = active`  <!-- active | inactive -->
-
-`HospitalCreate` = HospitalBase  
-`HospitalRead` = HospitalBase + `id`, `created_at`, `updated_at`  
-`HospitalUpdate` — all fields optional
-
-### Need (`models/need.py`)
-`NeedBase`
-- organ_type: OrganType  
-- urgency: int (1–5)  
-- blood_type: BloodType  
-- status: NeedStatus = waiting  
-
-`NeedCreate` = NeedBase  
-`NeedRead` = NeedBase + `id: UUID`, `recipient_id`, `listed_at`, `updated_at`  
-`NeedUpdate` — all fields optional
-
-### Health (`models/health.py`)
-- status: int  
-- status_message: str  
-- timestamp: str (UTC ISO-8601)  
-- ip_address: str  
-- echo?: str  
-- path_echo?: str  
-
----
-## 🧪 Service Logic (Sprint 2)
-**Hospitals Service**
-- list (with filters and limit)
-- create / update / delete
-- timestamp management
-- status enum mapping
-- delete behavior:
-  - hospital is not referenced by any recipients → ✔️ deleted successfully
-  - some recipients have `primary_hospital_id = {id}` → ❌ MySQL FK violation → 500 error (no rows deleted)
-
-**Recipients Service**
-- list all recipients with filters (`blood_type`, `status`, `hospital_id`, `limit`)
-- create a new recipient with optional primary_hospital_id  
-  - primary_hospital_id empty/null → ✔️ success  
-  - primary_hospital_id does not exist → ❌ MySQL FK violation → 500  
-- get / update / delete a single recipient (`GET/PUT/DELETE /recipients/{id}`)
-- update logic performs partial updates: fields omitted in the request retain their previous values
-- manage `created_at` / `updated_at` timestamps in the service layer
-- delete behavior: deletes row when found (204) or returns 404
-- exposes subresource for needs:
-  - `GET /recipients/{recipient_id}/needs`
-  - `POST /recipients/{recipient_id}/needs`
-  
-**Needs Service**
-- list all needs with filters (`organ_type`, `status`, `recipient_id`, `limit`)
-- create a new need under a recipient (`POST /recipients/{recipient_id}/needs`); the route validates recipient existence before invoking the service  
-- get / update / delete a single need (`GET/PUT/DELETE /needs/{id}`)
-- enforce urgency constraints (1–5) and status enum (`waiting/matched/removed`)
-- manage `listed_at` / `updated_at` timestamps in the service layer
-- deletion behavior:
-  - need with valid id → ✔️ deleted successfully  
-  - no cascade: deleting a recipient with remaining needs → ❌ blocked by FK constraint
-
-**Notes**
-- MySQL FK constraints block deletion of a parent row when it still has children.
-- To safely delete:
-  - delete **needs → then recipient**
-  - update/remove **recipients → then hospital**
 ---
 
