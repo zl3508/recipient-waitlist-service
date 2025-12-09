@@ -165,7 +165,7 @@ This microservice models a simple hierarchy:
 ### Recipients
 | Method | Path | Description |
 |---|---|---|
-| GET | `/recipients` | List (filters + `limit`)`limit` defaults to 50, max 200 |
+| GET | `/recipients` | List (filters + `limit`) |
 | POST | `/recipients` | Create recipient |
 | GET | `/recipients/{id}` | Get recipient by ID |
 | PUT | `/recipients/{id}` | Update recipient |
