@@ -165,7 +165,7 @@ This microservice models a simple hierarchy:
 | GET | `/recipients/{recipient_id}/needs` | Needs for recipient |
 | POST | `/recipients/{recipient_id}/needs` | Add need for recipient |
 
-### Hospitals (subresource + standalone)
+### Hospitals
 | Method | Path | Description |
 |---|---|---|
 | GET | `/hospitals` | List (filters + `limit`) |
@@ -173,9 +173,8 @@ This microservice models a simple hierarchy:
 | GET | `/hospitals/{id}` | Get hospital by ID |
 | PUT | `/hospitals/{id}` | Update hospital |
 | DELETE | `/hospitals/{id}` | Delete hospital |
-| GET | `/recipients/{recipient_id}/hospital` | Hospital for recipient |
 
-### Needs (subresource + standalone)
+### Needs
 | Method | Path | Description |
 |---|---|---|
  GET | `/needs` | List needs (filters + `limit`) |
