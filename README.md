@@ -144,8 +144,8 @@ This microservice models a simple hierarchy:
 
 ### Sprint 2 Enhancements
 - ✅ MySQL-backed persistence through `services/db.py`
-- ✅ Full CRUD for hospitals, recipients, and needs (with nested routes)
-- ✅ Async FastAPI routers delegating to service layer
+- ✅ Full CRUD for hospitals, recipients, and needs
+- ✅ Nested routes for recipient needs.
 - ✅ Basic domain validation (e.g., recipient must exist before adding needs)
 - ✅ `limit` query caps on collection endpoints (no offset/cursor pagination)
 - ⚠️ Not implemented: ETags, HATEOAS links, 201 Location headers, or 202/polling flows
