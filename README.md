@@ -153,6 +153,14 @@ This microservice models a simple hierarchy:
 ---
 
 ## 🌐 API Surface
+### Hospitals
+| Method | Path | Description |
+|---|---|---|
+| GET | `/hospitals` | List (filters + `limit`) |
+| POST | `/hospitals` | Create hospital |
+| GET | `/hospitals/{id}` | Get hospital by ID |
+| PUT | `/hospitals/{id}` | Update hospital |
+| DELETE | `/hospitals/{id}` | Delete hospital |
 
 ### Recipients
 | Method | Path | Description |
@@ -164,15 +172,6 @@ This microservice models a simple hierarchy:
 | DELETE | `/recipients/{id}` | Delete (blocked if needs exist) |
 | GET | `/recipients/{recipient_id}/needs` | Needs for recipient |
 | POST | `/recipients/{recipient_id}/needs` | Add need for recipient |
-
-### Hospitals
-| Method | Path | Description |
-|---|---|---|
-| GET | `/hospitals` | List (filters + `limit`) |
-| POST | `/hospitals` | Create hospital |
-| GET | `/hospitals/{id}` | Get hospital by ID |
-| PUT | `/hospitals/{id}` | Update hospital |
-| DELETE | `/hospitals/{id}` | Delete hospital |
 
 ### Needs
 | Method | Path | Description |
