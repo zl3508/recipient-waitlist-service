@@ -177,7 +177,6 @@ This microservice models a simple hierarchy:
 | Method | Path | Description |
 |---|---|---|
  GET | `/needs` | List needs (filters + `limit`) |
-| POST | `/needs` | Create need |
 | GET | `/needs/{id}` | Get need by ID |
 | PUT | `/needs/{id}` | Update need |
 | DELETE | `/needs/{id}` | Delete need |
