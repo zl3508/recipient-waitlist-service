@@ -10,6 +10,8 @@ from services.needs_service import (
     delete_need as svc_delete_need,
 )
 
+from services.recipients_service import get_recipient as svc_get_recipient  
+
 router = APIRouter(prefix="/needs", tags=["needs"])
 
 @router.get("", response_model=list[NeedRead])
@@ -19,6 +21,11 @@ def list_needs(
     recipient_id: UUID | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ):
+    if recipient_id is not None:
+        recipient = svc_get_recipient(recipient_id)
+        if recipient is None:
+            raise HTTPException(status_code=404, detail="Recipient not found")
+
     return svc_list_needs(
         organ_type=organ_type,
         status_q=status_q,
